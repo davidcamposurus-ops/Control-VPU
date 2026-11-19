@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VPU Control | Gestão de equipamentos</title>
+  <meta name="theme-color" content="#101c2e">
+  <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--navy:#101c2e;--navy2:#172943;--blue:#2878d0;--bg:#f3f6fa;--text:#172235;--muted:#718096;--line:#e5eaf1;--green:#16865b;--amber:#b7791f;--red:#c24141;--white:#fff}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+    button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:9px;padding:10px 14px;font-weight:650}
+    .app{min-height:100vh;display:grid;grid-template-columns:248px 1fr}.sidebar{background:var(--navy);color:#fff;padding:24px 16px;display:flex;flex-direction:column;gap:28px}
+    .brand{display:flex;align-items:center;gap:11px;padding:0 8px}.brand-mark{width:38px;height:38px;border-radius:11px;background:#2878d0;display:grid;place-items:center;font-weight:800;font-size:17px}.brand b{font-size:17px;letter-spacing:.2px}.brand small{display:block;color:#a9bad0;font-size:11px;margin-top:1px}
+    nav{display:grid;gap:6px}nav button{background:transparent;color:#bdcadd;text-align:left;padding:12px;display:flex;align-items:center;gap:12px}nav button.active,nav button:hover{background:#213957;color:white}nav span.ico{width:20px;text-align:center;font-size:16px}
+    .side-note{margin-top:auto;border:1px solid #30435c;border-radius:12px;padding:13px;color:#b9c7d8;font-size:12px}.side-note strong{display:block;color:white;margin-bottom:4px}
+    main{min-width:0}.topbar{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 32px;gap:16px}.topbar small{color:var(--muted)}.top-actions{display:flex;gap:9px;align-items:center}.public-pill{border:1px solid #cdebdc;color:var(--green);background:#effaf4;border-radius:30px;padding:7px 11px;font-size:12px;font-weight:700}
+    .content{padding:30px 32px;max-width:1440px;margin:auto}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}.page-head h1{font-size:25px;margin:0 0 5px}.page-head p{margin:0;color:var(--muted)}.primary{background:var(--blue);color:#fff}.secondary{background:#edf2f7;color:#26364b}.danger{background:#fff0f0;color:var(--red)}.outline{background:white;border:1px solid var(--line);color:#26364b}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin-bottom:22px}.stat{background:#fff;border:1px solid var(--line);border-radius:13px;padding:18px}.stat-top{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}.stat-num{font-size:29px;font-weight:750;margin-top:10px;letter-spacing:-1px}.stat-foot{font-size:11px;color:var(--muted);margin-top:3px}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:18px}.panel-head{padding:17px 19px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}.panel-head h2{font-size:15px;margin:0}.panel-body{padding:18px}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}.search{flex:1;min-width:200px}
+    input,select,textarea{width:100%;border:1px solid #d9e1eb;border-radius:8px;padding:10px 11px;background:white;color:var(--text);outline:none}input:focus,select:focus,textarea:focus{border-color:#6da5e5;box-shadow:0 0 0 3px #e7f1ff}.field{display:grid;gap:6px}.field label{font-size:12px;font-weight:700;color:#536276}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.form-grid .wide{grid-column:1/-1}
+    table{width:100%;border-collapse:collapse;white-space:nowrap}th{text-align:left;color:#718096;font-size:11px;text-transform:uppercase;letter-spacing:.45px;background:#f8fafc}th,td{padding:13px 16px;border-bottom:1px solid #edf0f4}td{font-size:13px}tbody tr:last-child td{border-bottom:0}.muted{color:var(--muted)}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.2px}.tag{display:inline-flex;align-items:center;border-radius:30px;padding:5px 9px;font-size:11px;font-weight:700;background:#eef2f7;color:#536276}.tag.green{background:#e9f8f0;color:#14784f}.tag.amber{background:#fff5df;color:#9a6413}.tag.blue{background:#eaf3ff;color:#2465aa}.tag.red{background:#fff0f0;color:#b33b3b}
+    .empty{padding:38px 18px;text-align:center;color:var(--muted)}.empty b{display:block;color:var(--text);margin-bottom:5px}.table-wrap{overflow:auto}.hidden{display:none!important}.notice{padding:12px 14px;border-radius:9px;background:#fff8e8;color:#805b15;border:1px solid #f4e4b8;margin-bottom:16px;font-size:12px}
+    .modal-backdrop{position:fixed;inset:0;background:#0c1727a8;display:grid;place-items:center;padding:18px;z-index:10}.modal{background:#fff;width:min(590px,100%);max-height:90vh;overflow:auto;border-radius:15px;box-shadow:0 20px 70px #0003}.modal-head{display:flex;justify-content:space-between;align-items:center;padding:19px 22px;border-bottom:1px solid var(--line)}.modal-head h3{margin:0;font-size:17px}.modal-content{padding:22px}.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}.x{background:transparent;font-size:21px;padding:2px 8px;color:#6b7788}
+    .toast{position:fixed;right:20px;bottom:20px;background:#172943;color:white;padding:13px 17px;border-radius:10px;box-shadow:0 8px 30px #0002;z-index:20;max-width:min(420px,calc(100vw - 40px))}.toast.error{background:#a83232}
+    .login-box{max-width:390px;margin:7vh auto;background:#fff;border:1px solid var(--line);padding:24px;border-radius:14px}.login-box h2{margin:0 0 5px}.login-box p{color:var(--muted);font-size:13px;margin:0 0 18px}.login-box .field{margin:12px 0}.login-box button{width:100%;margin-top:8px}
+    .brand-mark{box-shadow:0 8px 20px #2878d044}.brand-mark svg{width:24px;height:24px}
+    nav button{border-radius:10px;transition:background .18s ease,color .18s ease,transform .18s ease}nav button:hover{transform:translateX(2px)}nav span.ico{display:grid;place-items:center;width:22px;height:22px}nav span.ico svg{width:19px;height:19px}
+    .stat{position:relative;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease}.stat:hover{transform:translateY(-2px);box-shadow:0 10px 24px #1729430d}.stat-top{align-items:center}.stat-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:#eaf3ff;color:var(--blue)}.stat-icon svg{width:19px;height:19px}.stat:nth-child(2) .stat-icon{background:#e9f8f0;color:var(--green)}.stat:nth-child(3) .stat-icon{background:#fff5df;color:var(--amber)}.stat:nth-child(4) .stat-icon{background:#f0ebff;color:#7254b8}
+    .panel{box-shadow:0 3px 12px #17294308}.panel-head h2{display:flex;align-items:center;gap:9px}.section-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#eef5ff;color:var(--blue)}.section-icon svg{width:17px;height:17px}
+    .icon-button{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid transparent;border-radius:8px;font-size:12px;line-height:1.2;transition:background .15s ease,border-color .15s ease}.icon-button svg{width:15px;height:15px}.icon-button.edit{background:#edf4fc;color:#2465aa}.icon-button.edit:hover{background:#e0edfb}.icon-button.delete{background:#fff3f3;color:#b33b3b}.icon-button.delete:hover{background:#ffe5e5}
+    .icon-button.quick{background:#e9f8f0;color:#14784f}.icon-button.quick:hover{background:#d9f2e4}.icon-button.copy{background:#eef5ff;color:#2465aa}.icon-button.copy:hover{background:#dfedfb}.icon-button.whatsapp{background:#e8f8ef;color:#128c7e}.icon-button.whatsapp:hover{background:#d7f3e4}.stock-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.confirm-message{margin:0;color:#536276;white-space:pre-line}.confirm-symbol{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#fff0f0;color:var(--red);margin-bottom:14px}.confirm-symbol svg{width:22px;height:22px}.toast{display:flex;align-items:center;gap:10px;animation:toast-in .2s ease-out}.toast::before{content:"";width:8px;height:8px;flex:none;border-radius:50%;background:#71d5a2}.toast.error::before{background:#ffabab}@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .empty{padding:42px 18px}.table-wrap tbody tr:hover{background:#fafcff}
+    @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{padding:13px 14px;gap:12px}.brand{padding:0 3px}nav{display:flex;overflow:auto}nav button{white-space:nowrap;padding:9px 11px}.side-note{display:none}.topbar{height:60px;padding:0 18px}.content{padding:22px 18px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:540px){.page-head{display:block}.page-head>.primary{margin-top:15px;width:100%}.stats{gap:9px}.stat{padding:13px}.stat-num{font-size:24px}.topbar{padding:0 13px}.content{padding:18px 12px}.form-grid{grid-template-columns:1fr}.form-grid .wide{grid-column:auto}.public-pill{font-size:10px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="m8 9 4 6 4-6"/><path d="M8 3v2m8-2v2"/></svg></div><div><b>VPU CONTROL</b><small>Gestão de equipamentos</small></div></div>
+    <nav id="navigation">
+      <button class="active" data-page="dashboard"><span class="ico" data-icon="dashboard"></span>Dashboard</button>
+      <button data-page="equipments"><span class="ico" data-icon="equipment"></span>Equipamentos</button>
+      <button data-page="reservations"><span class="ico" data-icon="reservation"></span>Reservas</button>
+      <button data-page="stock"><span class="ico" data-icon="stock"></span>Estoque</button>
+      <button data-page="history"><span class="ico" data-icon="history"></span>Histórico</button>
+    </nav>
+    <div class="side-note"><strong>Consulta pública</strong>Qualquer pessoa com o link pode consultar equipamentos e reservas. Alterações exigem acesso administrativo.</div>
+  </aside>
+  <main>
+    <header class="topbar"><div><b id="top-title">Dashboard</b><br><small>Controle de VPUs e licenças Nedap</small></div><div class="top-actions"><span class="public-pill">● Consulta pública</span><button class="outline" id="admin-button">Acesso administrativo</button></div></header>
+    <div class="content">
+      <section id="page-dashboard">
+        <div class="page-head"><div><h1>Visão geral</h1><p>Acompanhe os equipamentos e as reservas do estoque.</p></div><button class="primary admin-only hidden" data-action="new-equipment">＋ Cadastrar VPU</button></div>
+        <div class="stats">
+          <div class="stat"><div class="stat-top"><span>Total de VPUs</span><span class="stat-icon" data-icon="equipment"></span></div><div class="stat-num" id="stat-total">—</div><div class="stat-foot">Equipamentos cadastrados</div></div>
+          <div class="stat"><div class="stat-top"><span>Disponíveis</span><span class="stat-icon" data-icon="check"></span></div><div class="stat-num" id="stat-available">—</div><div class="stat-foot">Prontas para reserva</div></div>
+          <div class="stat"><div class="stat-top"><span>Reservadas</span><span class="stat-icon" data-icon="reservation"></span></div><div class="stat-num" id="stat-reserved">—</div><div class="stat-foot">Aguardando separação/retirada</div></div>
+          <div class="stat"><div class="stat-top"><span>Em campo</span><span class="stat-icon" data-icon="field"></span></div><div class="stat-num" id="stat-field">—</div><div class="stat-foot">Retiradas para instalação</div></div>
+        </div>
+        <div class="panel"><div class="panel-head"><h2>Próximas reservas</h2><button class="secondary" data-goto="reservations">Ver todas</button></div><div class="table-wrap"><table><thead><tr><th>Cliente / Fazenda</th><th>Equipamento</th><th>Licença</th><th>Instalação</th><th>Situação</th></tr></thead><tbody id="dashboard-reservations"></tbody></table></div></div>
+        <div class="panel"><div class="panel-head"><h2>Equipamentos atualizados</h2><button class="secondary" data-goto="equipments">Ver equipamentos</button></div><div class="table-wrap"><table><thead><tr><th>Identificação</th><th>Modelo</th><th>Chave de licença</th><th>Situação</th></tr></thead><tbody id="dashboard-equipment"></tbody></table></div></div>
+      </section>
+
+      <section id="page-equipments" class="hidden">
+        <div class="page-head"><div><h1>Equipamentos</h1><p>Cadastro das VPUs e suas respectivas chaves de licença.</p></div><button class="primary admin-only hidden" data-action="new-equipment">＋ Cadastrar VPU</button></div>
+        <div class="panel"><div class="panel-body"><div class="toolbar"><input class="search" id="equipment-search" placeholder="Pesquisar por VPU, modelo ou chave de licença..."><select id="equipment-filter" style="max-width:190px"><option value="">Todas as situações</option><option value="awaiting_update">Aguardando atualização</option><option value="available">Disponível</option><option value="reserved">Reservada</option><option value="in_field">Em campo</option><option value="maintenance">Em manutenção</option></select></div><div class="table-wrap"><table><thead><tr><th>Identificação</th><th>Modelo</th><th>Chave de licença</th><th>Atualização</th><th>Situação</th><th></th></tr></thead><tbody id="equipment-rows"></tbody></table></div></div></div>
+      </section>
+
+      <section id="page-reservations" class="hidden">
+        <div class="page-head"><div><h1>Reservas</h1><p>Veja qual VPU está vinculada a cada fazenda.</p></div><button class="primary admin-only hidden" data-action="new-reservation">＋ Nova reserva</button></div>
+        <div class="panel"><div class="panel-body"><div class="toolbar"><input class="search" id="reservation-search" placeholder="Pesquisar cliente, VPU ou licença..."><select id="reservation-filter" style="max-width:190px"><option value="">Todas as situações</option><option value="reserved">Reservada</option><option value="separating">Separação</option><option value="in_field">Em campo</option></select></div><div class="table-wrap"><table><thead><tr><th>Cliente / Fazenda</th><th>VPU</th><th>Chave de licença</th><th>Data prevista</th><th>Situação</th><th></th></tr></thead><tbody id="reservation-rows"></tbody></table></div></div></div>
+      </section>
+
+      <section id="page-stock" class="hidden">
+        <div class="page-head"><div><h1>Estoque</h1><p>Consulta rápida para localizar e separar o equipamento correto.</p></div></div>
+        <div class="notice">Confira sempre a identificação física da etiqueta e a chave de licença exibida antes de separar a VPU.</div>
+        <div class="panel"><div class="panel-head"><h2>Equipamentos disponíveis</h2><span class="tag green" id="stock-count">0 disponíveis</span></div><div class="table-wrap"><table><thead><tr><th>Identificação</th><th>Modelo</th><th>Chave de licença</th><th>Última atualização</th><th>Ações</th></tr></thead><tbody id="stock-available"></tbody></table></div></div>
+        <div class="panel"><div class="panel-head"><h2>Separar / retirar</h2><span class="muted">Reservas ativas</span></div><div class="table-wrap"><table><thead><tr><th>Cliente</th><th>VPU</th><th>Licença</th><th>Data</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="stock-reservations"></tbody></table></div></div>
+      </section>
+
+      <section id="page-history" class="hidden">
+        <div class="page-head"><div><h1>Histórico</h1><p>Registro das alterações e movimentações dos equipamentos.</p></div></div>
+        <div class="panel"><div class="panel-body"><div class="toolbar"><input class="search" id="history-search" placeholder="Pesquisar por VPU, cliente ou ação..."></div><div class="table-wrap"><table><thead><tr><th>Data e hora</th><th>Equipamento</th><th>Movimentação</th><th>Detalhes</th><th>Responsável</th></tr></thead><tbody id="history-rows"></tbody></table></div></div></div>
+      </section>
+      <div class="muted" style="font-size:11px;text-align:center;padding:14px 0 4px">VPU Control · Controle interno de equipamentos · Dados sincronizados online</div>
+    </div>
+  </main>
+</div>
+
+<div id="login-modal" class="modal-backdrop hidden"><div class="modal" style="max-width:420px"><div class="modal-head"><h3>Acesso administrativo</h3><button class="x" data-close>×</button></div><div class="modal-content"><p class="muted" style="margin-top:0">Entre com o usuário autorizado para cadastrar equipamentos e gerenciar reservas.</p><div class="field"><label>E-mail</label><input id="login-email" type="email" autocomplete="username" placeholder="admin@empresa.com"></div><div class="field" style="margin-top:12px"><label>Senha</label><input id="login-password" type="password" autocomplete="current-password" placeholder="Sua senha"></div><div class="modal-actions"><button class="secondary" data-close>Cancelar</button><button class="primary" id="login-submit">Entrar</button></div><p id="login-error" style="color:#b33b3b;font-size:12px"></p></div></div></div>
+<div id="form-modal" class="modal-backdrop hidden"><div class="modal"><div class="modal-head"><h3 id="form-title">Cadastro</h3><button class="x" data-close>×</button></div><div class="modal-content" id="form-content"></div></div></div>
+<div id="confirm-modal" class="modal-backdrop hidden"><div class="modal" style="max-width:430px" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><div class="modal-content"><div class="confirm-symbol" id="confirm-symbol"></div><h3 id="confirm-title" style="margin:0 0 8px;font-size:18px">Confirmar ação</h3><p class="confirm-message" id="confirm-message"></p><div class="modal-actions"><button class="secondary" data-confirm-cancel>Cancelar</button><button class="danger" id="confirm-submit" data-confirm-accept>Excluir</button></div></div></div></div>
+<div id="toast" class="toast hidden"></div>
+
+<script>
+(() => {
+  const deploymentConfig = window.VPU_CONFIG || {};
+  const SUPABASE_URL = deploymentConfig.supabaseUrl || "";
+  const SUPABASE_ANON_KEY = deploymentConfig.supabaseAnonKey || "";
+  const configured = SUPABASE_URL.startsWith("https://") && !SUPABASE_ANON_KEY.startsWith("COLE_");
+  const db = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  let isAdmin = false, equipment = [], reservations = [], movements = [], currentPage = "dashboard", pendingConfirmation = null;
+
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const iconPaths = {
+    dashboard:'<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/>',
+    equipment:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9zM9 1v3m6-3v3M9 20v3m6-3v3M1 9h3m-3 6h3m16-6h3m-3 6h3"/>',
+    reservation:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18m-13 4h3m-3 3h7"/>',
+    stock:'<path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10m-4-12 9-4"/>',
+    history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2M3 12H1m3-6L3 4"/>',
+    check:'<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>',
+    field:'<path d="M3 17 10 10l4 4 7-8"/><path d="M15 6h6v6"/>',
+    edit:'<path d="m15 5 4 4M4 20l4-.8L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/>',
+    trash:'<path d="M3 6h18m-2 0-.9 14H5.9L5 6m4 0V4h6v2m-5 4v6m4-6v6"/>',
+    refresh:'<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.5-3"/>'
+    ,copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'
+    ,whatsapp:'<path d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.7A8.5 8.5 0 1 1 20.5 11.5Z"/><path d="M8 7.5c.5 3 2.5 5 5.5 6.5l1.5-1.5 2 1c-.2 2-1.2 3-3 3-4 0-7.5-3.5-7.5-7.5 0-1.8 1-2.8 3-3l1 2Z"/>'
+  };
+  const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name]||""}</svg>`;
+  const date = v => v ? new Date(v + (String(v).length===10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR") : "—";
+  const dateTime = v => v ? new Date(v).toLocaleString("pt-BR") : "—";
+  const statusLabel = s => ({awaiting_update:"Aguardando atualização",available:"Disponível",reserved:"Reservada",separating:"Separada",in_field:"Em campo",maintenance:"Em manutenção",installed:"Concluída",returned:"Devolvida",cancelled:"Cancelada"}[s] || s || "—");
+  const statusClass = s => ({available:"green",reserved:"amber",separating:"amber",in_field:"blue",awaiting_update:"red",maintenance:"red"}[s] || "");
+  const toast = (msg, error=false) => { $("toast").textContent=msg; $("toast").className="toast"+(error?" error":""); setTimeout(()=>$("toast").classList.add("hidden"),3500); };
+  const activeReservations = () => reservations.filter(r=>["reserved","separating","in_field"].includes(r.status));
+  const eqFor = id => equipment.find(e=>e.id===id);
+  const licenseFor = r => r.license_key || eqFor(r.equipment_id)?.license_key || "—";
+  const noRows = (cols,msg) => `<tr><td colspan="${cols}"><div class="empty"><b>${msg}</b>Os dados aparecerão aqui quando forem cadastrados.</div></td></tr>`;
+  const badge = s => `<span class="tag ${statusClass(s)}">${esc(statusLabel(s))}</span>`;
+  const requireAdmin = () => { if(!isAdmin){toast("Entre no acesso administrativo para realizar essa ação.",true);return false;} return true; };
+  async function copyText(text,label="Chave copiada"){
+    try{
+      if(navigator.clipboard&&window.isSecureContext){
+        await navigator.clipboard.writeText(text);
+      }else{
+        const input=document.createElement("textarea");
+        input.value=text;input.style.position="fixed";input.style.opacity="0";
+        document.body.appendChild(input);input.select();
+        if(!document.execCommand("copy"))throw new Error("Falha ao copiar");
+        input.remove();
+      }
+      toast(label);
+    }catch(error){
+      toast("Não foi possível copiar. Selecione o texto e copie manualmente.",true);
+    }
+  }
+  function copyEquipmentLicense(id){
+    const item=eqFor(id);
+    if(!item?.license_key){toast("Esta VPU não possui chave de licença cadastrada.",true);return;}
+    copyText(item.license_key,`Chave da ${item.label} copiada.`);
+  }
+  function shareEquipment(id){
+    const item=eqFor(id);if(!item?.license_key)return;
+    const text=[
+      "VPU CONTROL - Equipamento disponível",
+      `VPU: ${item.label}`,
+      `Modelo: ${item.model||"Não informado"}`,
+      `Chave de licença: ${item.license_key}`,
+      `Última atualização: ${date(item.updated_on)}`
+    ].join("\n");
+    window.open("https://wa.me/?text="+encodeURIComponent(text),"_blank","noopener,noreferrer");
+  }
+  function copyReservationLicense(id){
+    const item=reservations.find(r=>r.id===id);if(!item)return;
+    const key=licenseFor(item);
+    if(key==="—"){toast("Esta reserva não possui chave de licença.",true);return;}
+    const eq=eqFor(item.equipment_id);
+    copyText(key,`Chave da ${eq?.label||"VPU"} copiada.`);
+  }
+  function shareStockReservation(id){
+    const item=reservations.find(r=>r.id===id);if(!item)return;
+    const eq=eqFor(item.equipment_id);
+    const text=[
+      "VPU CONTROL - Separação de equipamento",
+      `Cliente/Fazenda: ${item.farm_name}`,
+      `VPU: ${eq?.label||"Não informada"}`,
+      `Modelo: ${eq?.model||"Não informado"}`,
+      `Chave de licença: ${licenseFor(item)}`,
+      `Data prevista: ${date(item.installation_date)}`,
+      `Situação: ${statusLabel(item.status)}`
+    ].join("\n");
+    window.open("https://wa.me/?text="+encodeURIComponent(text),"_blank","noopener,noreferrer");
+  }
+  const confirmAction = (title,message,confirmLabel="Excluir") => new Promise(resolve=>{
+    pendingConfirmation=resolve;
+    $("confirm-title").textContent=title;
+    $("confirm-message").textContent=message;
+    $("confirm-submit").textContent=confirmLabel;
+    $("confirm-submit").className=confirmLabel==="Excluir"?"danger":"primary";
+    $("confirm-symbol").innerHTML=icon("trash");
+    openModal("confirm-modal");
+    $("confirm-submit").focus();
+  });
+  function finishConfirmation(accepted){
+    if(!pendingConfirmation)return;
+    const resolve=pendingConfirmation;pendingConfirmation=null;
+    $("confirm-modal").classList.add("hidden");resolve(accepted);
+  }
+
+  async function loadData(){
+    if(!db){render();return;}
+    try {
+      const [e,r,m] = await Promise.all([
+        db.from("vpus").select("*").order("label"),
+        db.from("reservations").select("*").order("created_at",{ascending:false}),
+        db.from("movements").select("*").order("created_at",{ascending:false}).limit(300)
+      ]);
+      if(e.error) throw e.error; if(r.error) throw r.error; if(m.error) throw m.error;
+      equipment=e.data||[]; reservations=r.data||[]; movements=m.data||[];
+      render();
+    } catch(err){console.error(err);toast("Não foi possível carregar os dados. Confira a configuração e as políticas do Supabase.",true);render();}
+  }
+  async function logMovement(equipmentId, action, details){
+    if(!db) return;
+    const {error}=await db.from("movements").insert({equipment_id:equipmentId,action,details,actor: (await db.auth.getUser()).data.user?.email || "Administrador"});
+    if(error) console.warn("Falha ao registrar histórico:",error.message);
+  }
+  function render(){
+    const available=equipment.filter(e=>e.status==="available").length;
+    const reserved=equipment.filter(e=>["reserved","separating"].includes(e.status)).length;
+    const field=equipment.filter(e=>e.status==="in_field").length;
+    $("stat-total").textContent=equipment.length; $("stat-available").textContent=available; $("stat-reserved").textContent=reserved; $("stat-field").textContent=field;
+    const next=activeReservations().slice(0,6);
+    $("dashboard-reservations").innerHTML=next.length?next.map(r=>{const e=eqFor(r.equipment_id);return `<tr><td><b>${esc(r.farm_name)}</b></td><td>${esc(e?.label||"—")}</td><td class="mono">${esc(licenseFor(r))}</td><td>${date(r.installation_date)}</td><td>${badge(r.status)}</td></tr>`}).join(""):noRows(5,"Nenhuma reserva ativa.");
+    $("dashboard-equipment").innerHTML=equipment.slice(0,6).map(e=>`<tr><td><b>${esc(e.label)}</b></td><td>${esc(e.model||"—")}</td><td class="mono">${esc(e.license_key||"Não cadastrada")}</td><td>${badge(e.status)}</td></tr>`).join("")||noRows(4,"Nenhuma VPU cadastrada.");
+    const q=($("equipment-search")?.value||"").toLowerCase(), f=$("equipment-filter")?.value||"";
+    const filtered=equipment.filter(e=>(!f||e.status===f)&&[e.label,e.model,e.license_key].join(" ").toLowerCase().includes(q));
+    $("equipment-rows").innerHTML=filtered.map(e=>`<tr><td><b>${esc(e.label)}</b></td><td>${esc(e.model||"—")}</td><td class="mono">${esc(e.license_key||"—")}</td><td>${date(e.updated_on)}</td><td>${badge(e.status)}</td><td>${isAdmin?`<button class="icon-button edit" data-edit-equipment="${e.id}" aria-label="Editar ${esc(e.label)}">${icon("edit")}Editar</button> <button class="icon-button delete" data-delete-equipment="${e.id}" aria-label="Excluir ${esc(e.label)}">${icon("trash")}Excluir</button>`:""}</td></tr>`).join("")||noRows(6,"Nenhum equipamento encontrado.");
+    const rq=($("reservation-search")?.value||"").toLowerCase(), rf=$("reservation-filter")?.value||"";
+    const filteredR=reservations.filter(r=>(!rf||r.status===rf)&&[r.farm_name,eqFor(r.equipment_id)?.label,licenseFor(r)].join(" ").toLowerCase().includes(rq));
+    $("reservation-rows").innerHTML=filteredR.map(r=>`<tr><td><b>${esc(r.farm_name)}</b></td><td>${esc(eqFor(r.equipment_id)?.label||"—")}</td><td class="mono">${esc(licenseFor(r))}</td><td>${date(r.installation_date)}</td><td>${badge(r.status)}</td><td>${isAdmin?`<button class="icon-button edit" data-edit-reservation="${r.id}">${icon("refresh")}Gerenciar</button> <button class="icon-button delete" data-delete-reservation="${r.id}" aria-label="Excluir reserva de ${esc(r.farm_name)}">${icon("trash")}Excluir</button>`:""}</td></tr>`).join("")||noRows(6,"Nenhuma reserva encontrada.");
+    const stock=equipment.filter(e=>e.status==="available"); $("stock-count").textContent=stock.length+" disponíveis";
+    $("stock-available").innerHTML=stock.map(e=>`<tr><td><b>${esc(e.label)}</b></td><td>${esc(e.model||"—")}</td><td class="mono">${esc(e.license_key||"—")}</td><td>${date(e.updated_on)}</td><td>${e.license_key?`<div class="stock-actions"><button class="icon-button copy" data-copy-equipment="${e.id}" aria-label="Copiar chave da ${esc(e.label)}">${icon("copy")}Copiar chave</button><button class="icon-button whatsapp" data-share-equipment="${e.id}" aria-label="Compartilhar ${esc(e.label)} no WhatsApp">${icon("whatsapp")}WhatsApp</button></div>`:"—"}</td></tr>`).join("")||noRows(5,"Nenhuma VPU disponível.");
+    const ar=activeReservations();
+    $("stock-reservations").innerHTML=ar.map(r=>{const eq=eqFor(r.equipment_id);const shareAndCopy=`<button class="icon-button copy" data-copy-reservation="${r.id}">${icon("copy")}Copiar chave</button><button class="icon-button whatsapp" data-share-reservation="${r.id}">${icon("whatsapp")}WhatsApp</button>`;const quickAction=r.status==="reserved"?`<button class="icon-button quick" data-stock-status="${r.id}" data-next-status="separating">${icon("check")}Marcar separada</button>`:`<button class="icon-button quick" data-stock-status="${r.id}" data-next-status="installed">${icon("check")}Concluir</button>`;const adminActions=isAdmin?`${quickAction}<button class="icon-button edit" data-stock-action="${r.id}">${icon("refresh")}Editar</button><button class="icon-button delete" data-delete-reservation="${r.id}" aria-label="Excluir reserva de ${esc(r.farm_name)}">${icon("trash")}Excluir</button>`:"";return `<tr><td><b>${esc(r.farm_name)}</b></td><td>${esc(eq?.label||"—")}</td><td class="mono">${esc(licenseFor(r))}</td><td>${date(r.installation_date)}</td><td>${badge(r.status)}</td><td><div class="stock-actions">${shareAndCopy}${adminActions}</div></td></tr>`}).join("")||noRows(6,"Nenhum equipamento reservado.");
+    const hq=($("history-search")?.value||"").toLowerCase();
+    $("history-rows").innerHTML=movements.filter(m=>[eqFor(m.equipment_id)?.label,m.action,m.details,m.actor].join(" ").toLowerCase().includes(hq)).map(m=>`<tr><td>${dateTime(m.created_at)}</td><td><b>${esc(eqFor(m.equipment_id)?.label||"—")}</b></td><td>${esc(m.action)}</td><td>${esc(m.details||"—")}</td><td>${esc(m.actor||"—")}</td></tr>`).join("")||noRows(5,"Nenhuma movimentação registrada.");
+    document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden",!isAdmin));
+  }
+  function goto(page){currentPage=page;document.querySelectorAll("main section[id^=page-]").forEach(s=>s.classList.toggle("hidden",s.id!=="page-"+page));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));$("top-title").textContent=({dashboard:"Dashboard",equipments:"Equipamentos",reservations:"Reservas",stock:"Estoque",history:"Histórico"})[page];}
+  function openModal(id){$(id).classList.remove("hidden");}
+  function closeModals(){if(pendingConfirmation)finishConfirmation(false);document.querySelectorAll(".modal-backdrop").forEach(m=>m.classList.add("hidden"));}
+  function equipmentForm(item={}){
+    if(!requireAdmin())return;
+    $("form-title").textContent=item.id?"Editar equipamento":"Cadastrar VPU";
+    $("form-content").innerHTML=`<form id="equipment-form"><div class="form-grid">
+      <div class="field"><label>Identificação *</label><input name="label" required placeholder="VPU 01" value="${esc(item.label||"")}"></div>
+      <div class="field"><label>Modelo</label><input name="model" placeholder="VPU8002" value="${esc(item.model||"VPU8002")}"></div>
+      <div class="field wide"><label>Chave de licença</label><input name="license_key" class="mono" placeholder="Chave utilizada na atualização" value="${esc(item.license_key||"")}"></div>
+      <div class="field"><label>Situação *</label><select name="status">${["awaiting_update","available","maintenance"].map(s=>`<option value="${s}" ${item.status===s?"selected":""}>${statusLabel(s)}</option>`).join("")}${item.status&&["reserved","separating","in_field"].includes(item.status)?`<option value="${item.status}" selected>${statusLabel(item.status)}</option>`:""}</select></div>
+      <div class="field"><label>Data da atualização</label><input name="updated_on" type="date" value="${esc(item.updated_on||"")}"></div>
+      <div class="field wide"><label>Observações</label><textarea name="notes" rows="2" placeholder="Informações adicionais">${esc(item.notes||"")}</textarea></div>
+    </div><div class="modal-actions"><button type="button" class="secondary" data-close>Cancelar</button><button class="primary">Salvar equipamento</button></div></form>`;
+    openModal("form-modal");
+    $("equipment-form").onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.target));if(d.status==="available"&&!d.license_key.trim()){toast("Informe a chave de licença antes de disponibilizar a VPU.",true);return;}if(!db){toast("Configure o Supabase antes de salvar.",true);return;}
+      const payload={...d,license_key:d.license_key.trim()||null,updated_on:d.updated_on||null};
+      let savedId=item.id;
+      if(item.id){const {error}=await db.from("vpus").update(payload).eq("id",item.id);if(error){toast(error.message,true);return;}}
+      else {const {data,error}=await db.from("vpus").insert(payload).select("id").single();if(error){toast(error.message,true);return;}savedId=data.id;}
+      await logMovement(savedId,item.id?"Equipamento atualizado":"Equipamento cadastrado",d.label+" · "+(d.license_key||"sem licença"));closeModals();toast("Equipamento salvo.");await loadData();};
+  }
+  function reservationForm(item={}){
+    if(!requireAdmin())return;
+    const choices=equipment.filter(e=>e.license_key&&(!item.id||e.id===item.equipment_id||e.status==="available"));
+    $("form-title").textContent=item.id?"Gerenciar reserva":"Nova reserva";
+    if(item.id){
+      $("form-content").innerHTML=`<form id="reservation-form"><div class="form-grid">
+      <div class="field wide"><label>Cliente / Fazenda</label><input value="${esc(item.farm_name)}" disabled></div>
+      <div class="field wide"><label>Equipamento / licença</label><input value="${esc(eqFor(item.equipment_id)?.label||"")+" · "+esc(licenseFor(item))}" disabled></div>
+      <div class="field"><label>Situação</label><select name="status">${["reserved","separating","in_field","installed","returned","cancelled"].map(s=>`<option value="${s}" ${item.status===s?"selected":""}>${statusLabel(s)}</option>`).join("")}</select></div>
+      <div class="field"><label>Data prevista</label><input type="date" name="installation_date" value="${esc(item.installation_date||"")}"></div></div><div class="modal-actions"><button type="button" class="secondary" data-close>Fechar</button><button class="primary">Salvar situação</button></div></form>`;
+    } else {
+      $("form-content").innerHTML=`<form id="reservation-form"><div class="form-grid">
+      <div class="field wide"><label>Cliente / Fazenda *</label><input name="farm_name" required placeholder="Nome da fazenda"></div>
+      <div class="field wide"><label>VPU disponível *</label><select name="equipment_id" required><option value="">Selecione a VPU</option>${choices.filter(e=>e.status==="available").map(e=>`<option value="${e.id}">${esc(e.label)} · ${esc(e.license_key)}</option>`).join("")}</select></div>
+      <div class="field"><label>Data prevista da instalação</label><input type="date" name="installation_date"></div>
+      <div class="field"><label>Observações</label><input name="notes" placeholder="Opcional"></div></div><div class="modal-actions"><button type="button" class="secondary" data-close>Cancelar</button><button class="primary">Criar reserva</button></div></form>`;
+    }
+    openModal("form-modal");
+    $("reservation-form").onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.target));if(!db){toast("Configure o Supabase antes de salvar.",true);return;}
+      if(item.id){const {error}=await db.from("reservations").update({status:d.status,installation_date:d.installation_date||null}).eq("id",item.id);if(error){toast(error.message,true);return;}
+        const eq=eqFor(item.equipment_id);let nextEq=eq?.status;if(["in_field","installed"].includes(d.status))nextEq="in_field";else if(d.status==="returned")nextEq="available";else if(d.status==="cancelled")nextEq=(eq?.status==="in_field"?"in_field":"available");else if(["reserved","separating"].includes(d.status))nextEq="reserved";
+        if(nextEq&&eq){await db.from("vpus").update({status:nextEq}).eq("id",eq.id);await logMovement(eq.id,"Reserva: "+statusLabel(d.status),item.farm_name);}
+      } else {const eq=eqFor(d.equipment_id);if(!eq||eq.status!=="available"){toast("Essa VPU não está mais disponível. Atualize a página.",true);return;}
+        const {error}=await db.from("reservations").insert({farm_name:d.farm_name,equipment_id:d.equipment_id,license_key:eq.license_key,installation_date:d.installation_date||null,notes:d.notes||null,status:"reserved"});
+        if(error){toast(error.message,true);return;}await db.from("vpus").update({status:"reserved"}).eq("id",eq.id);await logMovement(eq.id,"VPU reservada",d.farm_name);
+      }
+      closeModals();toast("Reserva atualizada.");await loadData();};
+  }
+  async function login(){
+    if(!db){$("login-error").textContent="Configure o Supabase antes de entrar.";return;}
+    const {error}=await db.auth.signInWithPassword({email:$("login-email").value,password:$("login-password").value});
+    if(error){$("login-error").textContent=error.message;return;}
+    await checkAdmin();closeModals();toast(isAdmin?"Acesso administrativo liberado.":"Usuário autenticado, mas sem permissão administrativa.");await loadData();
+  }
+  async function checkAdmin(){
+    if(!db)return;const {data:{user}}=await db.auth.getUser();if(!user){isAdmin=false;return;}
+    const {data,error}=await db.from("app_admins").select("user_id").eq("user_id",user.id).maybeSingle();isAdmin=!!data&&!error;
+    $("admin-button").textContent=isAdmin?"Sair do administrativo":"Acesso administrativo";
+  }
+  async function logout(){await db.auth.signOut();isAdmin=false;$("admin-button").textContent="Acesso administrativo";render();toast("Sessão encerrada.");}
+  async function deleteEquipment(id){
+    if(!requireAdmin())return;
+    if(!db){toast("Configure o Supabase antes de excluir.",true);return;}
+    const item=eqFor(id);if(!item)return;
+    const {data:linked,error:checkError}=await db.from("reservations").select("id").eq("equipment_id",id).limit(1);
+    if(checkError){toast("Não foi possível verificar as reservas vinculadas: "+checkError.message,true);return;}
+    if(linked?.length){toast("Não é possível excluir: remova primeiro as reservas vinculadas a este equipamento.",true);return;}
+    if(!await confirmAction("Excluir equipamento?",`Tem certeza que deseja excluir o equipamento ${item.label}? Esta ação não pode ser desfeita.`))return;
+    const {error}=await db.from("vpus").delete().eq("id",id);
+    if(error){toast("Não foi possível excluir o equipamento: "+error.message,true);return;}
+    toast("Equipamento excluído.");await loadData();
+  }
+  async function deleteReservation(id){
+    if(!requireAdmin())return;
+    if(!db){toast("Configure o Supabase antes de excluir.",true);return;}
+    const item=reservations.find(r=>r.id===id);if(!item)return;
+    const eq=eqFor(item.equipment_id);
+    const fieldWarning=item.status==="in_field"?" A VPU continuará marcada como em campo.":"";
+    if(!await confirmAction("Excluir reserva?",`Tem certeza que deseja excluir a reserva de ${item.farm_name}?${fieldWarning} Esta ação não pode ser desfeita.`))return;
+    const {error}=await db.from("reservations").delete().eq("id",id);
+    if(error){toast("Não foi possível excluir a reserva: "+error.message,true);return;}
+    let updateError=null;
+    if(eq&&["reserved","separating"].includes(item.status)){
+      const {error}=await db.from("vpus").update({status:"available"}).eq("id",eq.id);
+      updateError=error;
+    }
+    await logMovement(item.equipment_id,"Reserva excluída",item.farm_name+" · "+statusLabel(item.status));
+    if(updateError)toast("Reserva excluída, mas não foi possível atualizar o equipamento: "+updateError.message,true);
+    else toast("Reserva excluída.");
+    await loadData();
+  }
+  async function updateStockReservation(id,nextStatus){
+    if(!requireAdmin())return;
+    if(!db){toast("Configure o Supabase antes de atualizar a reserva.",true);return;}
+    const item=reservations.find(r=>r.id===id);if(!item)return;
+    const allowed=nextStatus==="separating"?item.status==="reserved":["separating","in_field"].includes(item.status);
+    if(!allowed){toast("A situação da reserva mudou. Atualize os dados e tente novamente.",true);await loadData();return;}
+    const {error}=await db.from("reservations").update({status:nextStatus}).eq("id",id);
+    if(error){toast("Não foi possível atualizar a reserva: "+error.message,true);return;}
+    const eq=eqFor(item.equipment_id);
+    const equipmentStatus=nextStatus==="installed"?"in_field":"reserved";
+    if(eq){
+      const {error:equipmentError}=await db.from("vpus").update({status:equipmentStatus}).eq("id",eq.id);
+      if(equipmentError){toast("A reserva foi atualizada, mas o equipamento não: "+equipmentError.message,true);await loadData();return;}
+    }
+    await logMovement(item.equipment_id,"Reserva: "+statusLabel(nextStatus),item.farm_name);
+    toast(nextStatus==="separating"?"Reserva marcada como separada.":"Reserva concluída.");
+    await loadData();
+  }
+  document.addEventListener("click",ev=>{
+    const nav=ev.target.closest("[data-page]");if(nav){goto(nav.dataset.page);return;}
+    const go=ev.target.closest("[data-goto]");if(go){goto(go.dataset.goto);return;}
+    if(ev.target.closest("[data-close]")){closeModals();return;}
+    const newEq=ev.target.closest('[data-action="new-equipment"]');if(newEq){equipmentForm();return;}
+    const newRes=ev.target.closest('[data-action="new-reservation"]');if(newRes){reservationForm();return;}
+    const editEq=ev.target.closest("[data-edit-equipment]");if(editEq){equipmentForm(eqFor(editEq.dataset.editEquipment));return;}
+    const editRes=ev.target.closest("[data-edit-reservation]");if(editRes){reservationForm(reservations.find(r=>r.id===editRes.dataset.editReservation));return;}
+    const deleteEq=ev.target.closest("[data-delete-equipment]");if(deleteEq){deleteEquipment(deleteEq.dataset.deleteEquipment);return;}
+    const deleteRes=ev.target.closest("[data-delete-reservation]");if(deleteRes){deleteReservation(deleteRes.dataset.deleteReservation);return;}
+    const copyEq=ev.target.closest("[data-copy-equipment]");if(copyEq){copyEquipmentLicense(copyEq.dataset.copyEquipment);return;}
+    const shareEq=ev.target.closest("[data-share-equipment]");if(shareEq){shareEquipment(shareEq.dataset.shareEquipment);return;}
+    const copyRes=ev.target.closest("[data-copy-reservation]");if(copyRes){copyReservationLicense(copyRes.dataset.copyReservation);return;}
+    const shareRes=ev.target.closest("[data-share-reservation]");if(shareRes){shareStockReservation(shareRes.dataset.shareReservation);return;}
+    const stockStatus=ev.target.closest("[data-stock-status]");if(stockStatus){updateStockReservation(stockStatus.dataset.stockStatus,stockStatus.dataset.nextStatus);return;}
+    const stock=ev.target.closest("[data-stock-action]");if(stock){const r=reservations.find(x=>x.id===stock.dataset.stockAction);reservationForm(r);return;}
+  });
+  document.addEventListener("click",ev=>{
+    if(ev.target.closest("[data-confirm-accept]")){finishConfirmation(true);return;}
+    if(ev.target.closest("[data-confirm-cancel]"))finishConfirmation(false);
+  });
+  document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&pendingConfirmation)finishConfirmation(false);});
+  $("admin-button").onclick=async()=>{if(isAdmin){await logout();}else{openModal("login-modal");}};
+  $("login-submit").onclick=login;
+  ["equipment-search","equipment-filter","reservation-search","reservation-filter","history-search"].forEach(id=>$(id).addEventListener("input",render));
+  if(db){db.auth.onAuthStateChange(()=>setTimeout(async()=>{await checkAdmin();render();},0));}
+  document.querySelectorAll("[data-icon]").forEach(el=>{el.innerHTML=icon(el.dataset.icon);});
+  goto("dashboard");checkAdmin();loadData();
+  // Atualiza os dados para que o estoque veja as mudanças recentes.
+  setInterval(loadData,45000);
+})();
+</script>
+</body>
+</html>
