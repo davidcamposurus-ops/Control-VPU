@@ -45,6 +45,7 @@
       <button data-page="equipments"><span class="ico" data-icon="equipment"></span>Equipamentos</button>
       <button data-page="reservations"><span class="ico" data-icon="reservation"></span>Reservas</button>
       <button data-page="stock"><span class="ico" data-icon="stock"></span>Estoque</button>
+      <button class="admin-only hidden" data-page="licenses"><span class="ico" data-icon="license"></span>Licenças</button>
       <button data-page="history"><span class="ico" data-icon="history"></span>Histórico</button>
     </nav>
     <div class="side-note"><strong>Consulta pública</strong>Qualquer pessoa com o link pode consultar equipamentos e reservas. Alterações exigem acesso administrativo.</div>
@@ -81,6 +82,17 @@
         <div class="panel"><div class="panel-head"><h2>Separar / retirar</h2><span class="muted">Reservas ativas</span></div><div class="table-wrap"><table><thead><tr><th>Cliente</th><th>VPU</th><th>Licença</th><th>Data</th><th>Situação</th><th>Ação</th></tr></thead><tbody id="stock-reservations"></tbody></table></div></div>
       </section>
 
+      <section id="page-licenses" class="hidden">
+        <div class="page-head"><div><h1>Licenças</h1><p>Cadastre várias chaves e consulte quais estão disponíveis ou usadas.</p></div><button class="primary admin-only" data-action="new-license">＋ Cadastrar licença</button></div>
+        <div class="stats">
+          <div class="stat"><div class="stat-top"><span>Total cadastradas</span><span class="stat-icon" data-icon="license"></span></div><div class="stat-num" id="license-total">—</div><div class="stat-foot">Chaves no cadastro</div></div>
+          <div class="stat"><div class="stat-top"><span>Disponíveis</span><span class="stat-icon" data-icon="check"></span></div><div class="stat-num" id="license-available">—</div><div class="stat-foot">Prontas para usar</div></div>
+          <div class="stat"><div class="stat-top"><span>Usadas</span><span class="stat-icon" data-icon="field"></span></div><div class="stat-num" id="license-used">—</div><div class="stat-foot">Vinculadas a equipamentos</div></div>
+          <div class="stat"><div class="stat-top"><span>Inativas</span><span class="stat-icon" data-icon="maintenance"></span></div><div class="stat-num" id="license-inactive">—</div><div class="stat-foot">Fora de uso operacional</div></div>
+        </div>
+        <div class="panel"><div class="panel-body"><div class="toolbar"><input class="search" id="license-search" placeholder="Pesquisar chave de licença ou observação..."><select id="license-filter" style="max-width:190px"><option value="">Todas as situações</option><option value="available">Disponível</option><option value="used">Usada</option><option value="inactive">Inativa</option></select></div><div class="table-wrap"><table><thead><tr><th>Chave de licença</th><th>Situação</th><th>Observações</th><th>Atualização</th><th>Ações</th></tr></thead><tbody id="license-rows"></tbody></table></div></div></div>
+      </section>
+
       <section id="page-history" class="hidden">
         <div class="page-head"><div><h1>Histórico</h1><p>Registro das alterações e movimentações dos equipamentos.</p></div></div>
         <div class="panel"><div class="panel-body"><div class="toolbar"><input class="search" id="history-search" placeholder="Pesquisar por VPU, cliente ou ação..."></div><div class="table-wrap"><table><thead><tr><th>Data e hora</th><th>Equipamento</th><th>Movimentação</th><th>Detalhes</th><th>Responsável</th></tr></thead><tbody id="history-rows"></tbody></table></div></div></div>
@@ -102,7 +114,7 @@
   const SUPABASE_ANON_KEY = deploymentConfig.supabaseAnonKey || "";
   const configured = SUPABASE_URL.startsWith("https://") && !SUPABASE_ANON_KEY.startsWith("COLE_");
   const db = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-  let isAdmin = false, equipment = [], reservations = [], movements = [], currentPage = "dashboard", pendingConfirmation = null;
+  let isAdmin = false, equipment = [], reservations = [], movements = [], licensePool = [], currentPage = "dashboard", pendingConfirmation = null;
 
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -119,12 +131,14 @@
     refresh:'<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.5-3"/>'
     ,copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'
     ,whatsapp:'<path d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.7A8.5 8.5 0 1 1 20.5 11.5Z"/><path d="M8 7.5c.5 3 2.5 5 5.5 6.5l1.5-1.5 2 1c-.2 2-1.2 3-3 3-4 0-7.5-3.5-7.5-7.5 0-1.8 1-2.8 3-3l1 2Z"/>'
+    ,license:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M13 9h5m-5 3h5m-5 3h3"/>'
+    ,maintenance:'<path d="M14.7 6.3a4 4 0 0 0-5-5L12 3.6l-2.4 2.4-2.3-2.3a4 4 0 0 0 5 5L18 14.4a2 2 0 0 1-2.8 2.8l-5.7-5.7"/>'
   };
   const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name]||""}</svg>`;
   const date = v => v ? new Date(v + (String(v).length===10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR") : "—";
   const dateTime = v => v ? new Date(v).toLocaleString("pt-BR") : "—";
-  const statusLabel = s => ({awaiting_update:"Aguardando atualização",available:"Disponível",reserved:"Reservada",separating:"Separada",in_field:"Em campo",maintenance:"Em manutenção",installed:"Concluída",returned:"Devolvida",cancelled:"Cancelada"}[s] || s || "—");
-  const statusClass = s => ({available:"green",reserved:"amber",separating:"amber",in_field:"blue",awaiting_update:"red",maintenance:"red"}[s] || "");
+  const statusLabel = s => ({awaiting_update:"Aguardando atualização",available:"Disponível",reserved:"Reservada",separating:"Separada",in_field:"Em campo",maintenance:"Em manutenção",installed:"Concluída",returned:"Devolvida",cancelled:"Cancelada",used:"Usada",inactive:"Inativa"}[s] || s || "—");
+  const statusClass = s => ({available:"green",reserved:"amber",separating:"amber",in_field:"blue",used:"blue",awaiting_update:"red",maintenance:"red",inactive:"red"}[s] || "");
   const toast = (msg, error=false) => { $("toast").textContent=msg; $("toast").className="toast"+(error?" error":""); setTimeout(()=>$("toast").classList.add("hidden"),3500); };
   const activeReservations = () => reservations.filter(r=>["reserved","separating","in_field"].includes(r.status));
   const eqFor = id => equipment.find(e=>e.id===id);
@@ -204,12 +218,14 @@
   async function loadData(){
     if(!db){render();return;}
     try {
-      const [e,r,m] = await Promise.all([
+      const [e,r,m,l] = await Promise.all([
         db.from("vpus").select("*").order("label"),
         db.from("reservations").select("*").order("created_at",{ascending:false}),
-        db.from("movements").select("*").order("created_at",{ascending:false}).limit(300)
+        db.from("movements").select("*").order("created_at",{ascending:false}).limit(300),
+        db.from("license_pool").select("*").order("license_key")
       ]);
       if(e.error) throw e.error; if(r.error) throw r.error; if(m.error) throw m.error;
+      if(!l.error) licensePool=l.data||[]; else if(!isAdmin) licensePool=[]; else throw l.error;
       equipment=e.data||[]; reservations=r.data||[]; movements=m.data||[];
       render();
     } catch(err){console.error(err);toast("Não foi possível carregar os dados. Confira a configuração e as políticas do Supabase.",true);render();}
@@ -218,6 +234,17 @@
     if(!db) return;
     const {error}=await db.from("movements").insert({equipment_id:equipmentId,action,details,actor: (await db.auth.getUser()).data.user?.email || "Administrador"});
     if(error) console.warn("Falha ao registrar histórico:",error.message);
+  }
+  function normalizeVpuLabel(value){
+    const text=String(value||"").trim();
+    const digits=text.match(/\d+/)?.[0];
+    if(digits)return "VPU "+String(parseInt(digits,10)).padStart(2,"0");
+    return "VPU "+text.replace(/^VPU\s*/i,"").trim();
+  }
+  async function syncLicenseStatus(key,status,notes=""){
+    if(!key||!db)return;
+    const {error}=await db.from("license_pool").upsert({license_key:key,status,notes:notes||null,updated_at:new Date().toISOString()},{onConflict:"license_key"});
+    if(error)console.warn("Falha ao atualizar licença:",error.message);
   }
   function render(){
     const available=equipment.filter(e=>e.status==="available").length;
@@ -239,28 +266,47 @@
     $("stock-reservations").innerHTML=ar.map(r=>{const eq=eqFor(r.equipment_id);const shareAndCopy=`<button class="icon-button copy" data-copy-reservation="${r.id}">${icon("copy")}Copiar chave</button><button class="icon-button whatsapp" data-share-reservation="${r.id}">${icon("whatsapp")}WhatsApp</button>`;const quickAction=r.status==="reserved"?`<button class="icon-button quick" data-stock-status="${r.id}" data-next-status="separating">${icon("check")}Marcar separada</button>`:`<button class="icon-button quick" data-stock-status="${r.id}" data-next-status="installed">${icon("check")}Concluir</button>`;const adminActions=isAdmin?`${quickAction}<button class="icon-button edit" data-stock-action="${r.id}">${icon("refresh")}Editar</button><button class="icon-button delete" data-delete-reservation="${r.id}" aria-label="Excluir reserva de ${esc(r.farm_name)}">${icon("trash")}Excluir</button>`:"";return `<tr><td><b>${esc(r.farm_name)}</b></td><td>${esc(eq?.label||"—")}</td><td class="mono">${esc(licenseFor(r))}</td><td>${date(r.installation_date)}</td><td>${badge(r.status)}</td><td><div class="stock-actions">${shareAndCopy}${adminActions}</div></td></tr>`}).join("")||noRows(6,"Nenhum equipamento reservado.");
     const hq=($("history-search")?.value||"").toLowerCase();
     $("history-rows").innerHTML=movements.filter(m=>[eqFor(m.equipment_id)?.label,m.action,m.details,m.actor].join(" ").toLowerCase().includes(hq)).map(m=>`<tr><td>${dateTime(m.created_at)}</td><td><b>${esc(eqFor(m.equipment_id)?.label||"—")}</b></td><td>${esc(m.action)}</td><td>${esc(m.details||"—")}</td><td>${esc(m.actor||"—")}</td></tr>`).join("")||noRows(5,"Nenhuma movimentação registrada.");
+    const licenseAvailable=licensePool.filter(l=>l.status==="available").length;
+    const licenseUsed=licensePool.filter(l=>l.status==="used").length;
+    const licenseInactive=licensePool.filter(l=>l.status==="inactive").length;
+    $("license-total").textContent=licensePool.length;
+    $("license-available").textContent=licenseAvailable;
+    $("license-used").textContent=licenseUsed;
+    $("license-inactive").textContent=licenseInactive;
+    const lq=($("license-search")?.value||"").toLowerCase(), lf=$("license-filter")?.value||"";
+    const filteredL=licensePool.filter(l=>(!lf||l.status===lf)&&[l.license_key,l.notes].join(" ").toLowerCase().includes(lq));
+    $("license-rows").innerHTML=filteredL.map(l=>`<tr><td class="mono"><b>${esc(l.license_key)}</b></td><td>${badge(l.status)}</td><td>${esc(l.notes||"—")}</td><td>${dateTime(l.updated_at)}</td><td>${isAdmin?`<button class="icon-button edit" data-edit-license="${l.id}">${icon("edit")}Editar</button> <button class="icon-button quick" data-license-status="${l.id}" data-next-status="${l.status==="used"?"available":"used"}">${icon("check")}${l.status==="used"?"Marcar disponível":"Marcar usada"}</button> <button class="icon-button delete" data-delete-license="${l.id}">${icon("trash")}Excluir</button>`:"—"}</td></tr>`).join("")||noRows(5,"Nenhuma licença cadastrada.");
     document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden",!isAdmin));
   }
-  function goto(page){currentPage=page;document.querySelectorAll("main section[id^=page-]").forEach(s=>s.classList.toggle("hidden",s.id!=="page-"+page));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));$("top-title").textContent=({dashboard:"Dashboard",equipments:"Equipamentos",reservations:"Reservas",stock:"Estoque",history:"Histórico"})[page];}
+  function goto(page){currentPage=page;document.querySelectorAll("main section[id^=page-]").forEach(s=>s.classList.toggle("hidden",s.id!=="page-"+page));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));$("top-title").textContent=({dashboard:"Dashboard",equipments:"Equipamentos",reservations:"Reservas",stock:"Estoque",licenses:"Licenças",history:"Histórico"})[page];}
   function openModal(id){$(id).classList.remove("hidden");}
   function closeModals(){if(pendingConfirmation)finishConfirmation(false);document.querySelectorAll(".modal-backdrop").forEach(m=>m.classList.add("hidden"));}
   function equipmentForm(item={}){
     if(!requireAdmin())return;
     $("form-title").textContent=item.id?"Editar equipamento":"Cadastrar VPU";
+    let nextNumber=1;
+    if(!item.id){while(equipment.some(e=>normalizeVpuLabel(e.label).toLowerCase()==="vpu "+String(nextNumber).padStart(2,"0")))nextNumber++;}
+    const defaultLabel=item.label||normalizeVpuLabel(String(nextNumber));
+    const availableLicenseOptions=licensePool.filter(l=>l.status==="available").map(l=>`<option value="${esc(l.license_key)}"></option>`).join("");
     $("form-content").innerHTML=`<form id="equipment-form"><div class="form-grid">
-      <div class="field"><label>Identificação *</label><input name="label" required placeholder="VPU 01" value="${esc(item.label||"")}"></div>
+      <div class="field"><label>Identificação *</label><input name="label" required placeholder="VPU 01" value="${esc(defaultLabel)}"><small class="muted">Sempre será normalizada como VPU + número, por exemplo VPU 01.</small></div>
       <div class="field"><label>Modelo</label><input name="model" placeholder="VPU8002" value="${esc(item.model||"VPU8002")}"></div>
-      <div class="field wide"><label>Chave de licença</label><input name="license_key" class="mono" placeholder="Chave utilizada na atualização" value="${esc(item.license_key||"")}"></div>
+      <div class="field wide"><label>Chave de licença</label><input name="license_key" list="license-options" class="mono" placeholder="Digite uma chave ou selecione uma cadastrada" value="${esc(item.license_key||"")}"><datalist id="license-options">${availableLicenseOptions}</datalist></div>
       <div class="field"><label>Situação *</label><select name="status">${["awaiting_update","available","maintenance"].map(s=>`<option value="${s}" ${item.status===s?"selected":""}>${statusLabel(s)}</option>`).join("")}${item.status&&["reserved","separating","in_field"].includes(item.status)?`<option value="${item.status}" selected>${statusLabel(item.status)}</option>`:""}</select></div>
       <div class="field"><label>Data da atualização</label><input name="updated_on" type="date" value="${esc(item.updated_on||"")}"></div>
       <div class="field wide"><label>Observações</label><textarea name="notes" rows="2" placeholder="Informações adicionais">${esc(item.notes||"")}</textarea></div>
     </div><div class="modal-actions"><button type="button" class="secondary" data-close>Cancelar</button><button class="primary">Salvar equipamento</button></div></form>`;
     openModal("form-modal");
-    $("equipment-form").onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.target));if(d.status==="available"&&!d.license_key.trim()){toast("Informe a chave de licença antes de disponibilizar a VPU.",true);return;}if(!db){toast("Configure o Supabase antes de salvar.",true);return;}
-      const payload={...d,license_key:d.license_key.trim()||null,updated_on:d.updated_on||null};
+    $("equipment-form").onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.target));d.label=normalizeVpuLabel(d.label);d.license_key=d.license_key.trim();
+      const duplicate=equipment.find(e=>e.id!==item.id&&e.label.trim().toLowerCase()===d.label.toLowerCase());
+      if(duplicate){toast(`Já existe a identificação ${d.label}. Escolha outro número de VPU.`,true);return;}
+      if(d.status==="available"&&!d.license_key){toast("Informe a chave de licença antes de disponibilizar a VPU.",true);return;}if(!db){toast("Configure o Supabase antes de salvar.",true);return;}
+      const payload={...d,license_key:d.license_key||null,updated_on:d.updated_on||null};
       let savedId=item.id;
       if(item.id){const {error}=await db.from("vpus").update(payload).eq("id",item.id);if(error){toast(error.message,true);return;}}
       else {const {data,error}=await db.from("vpus").insert(payload).select("id").single();if(error){toast(error.message,true);return;}savedId=data.id;}
+      const licenseStatus=d.status==="maintenance"?"inactive":(["reserved","separating","in_field"].includes(d.status)||d.status==="awaiting_update"?"used":"available");
+      await syncLicenseStatus(d.license_key,licenseStatus,"Vinculada à "+d.label);
       await logMovement(savedId,item.id?"Equipamento atualizado":"Equipamento cadastrado",d.label+" · "+(d.license_key||"sem licença"));closeModals();toast("Equipamento salvo.");await loadData();};
   }
   function reservationForm(item={}){
@@ -285,9 +331,10 @@
       if(item.id){const {error}=await db.from("reservations").update({status:d.status,installation_date:d.installation_date||null}).eq("id",item.id);if(error){toast(error.message,true);return;}
         const eq=eqFor(item.equipment_id);let nextEq=eq?.status;if(["in_field","installed"].includes(d.status))nextEq="in_field";else if(d.status==="returned")nextEq="available";else if(d.status==="cancelled")nextEq=(eq?.status==="in_field"?"in_field":"available");else if(["reserved","separating"].includes(d.status))nextEq="reserved";
         if(nextEq&&eq){await db.from("vpus").update({status:nextEq}).eq("id",eq.id);await logMovement(eq.id,"Reserva: "+statusLabel(d.status),item.farm_name);}
+        if(eq)await syncLicenseStatus(eq.license_key,["returned","cancelled"].includes(d.status)?"available":"used",item.farm_name);
       } else {const eq=eqFor(d.equipment_id);if(!eq||eq.status!=="available"){toast("Essa VPU não está mais disponível. Atualize a página.",true);return;}
         const {error}=await db.from("reservations").insert({farm_name:d.farm_name,equipment_id:d.equipment_id,license_key:eq.license_key,installation_date:d.installation_date||null,notes:d.notes||null,status:"reserved"});
-        if(error){toast(error.message,true);return;}await db.from("vpus").update({status:"reserved"}).eq("id",eq.id);await logMovement(eq.id,"VPU reservada",d.farm_name);
+        if(error){toast(error.message,true);return;}await db.from("vpus").update({status:"reserved"}).eq("id",eq.id);await syncLicenseStatus(eq.license_key,"used",d.farm_name);await logMovement(eq.id,"VPU reservada",d.farm_name);
       }
       closeModals();toast("Reserva atualizada.");await loadData();};
   }
@@ -303,6 +350,49 @@
     $("admin-button").textContent=isAdmin?"Sair do administrativo":"Acesso administrativo";
   }
   async function logout(){await db.auth.signOut();isAdmin=false;$("admin-button").textContent="Acesso administrativo";render();toast("Sessão encerrada.");}
+  function licenseForm(item={}){
+    if(!requireAdmin())return;
+    $("form-title").textContent=item.id?"Editar licença":"Cadastrar licença";
+    $("form-content").innerHTML=`<form id="license-form"><div class="form-grid">
+      <div class="field wide"><label>Chave de licença *</label><input name="license_key" class="mono" required placeholder="Digite a chave completa" value="${esc(item.license_key||"")}"></div>
+      <div class="field"><label>Situação *</label><select name="status">${["available","used","inactive"].map(s=>`<option value="${s}" ${item.status===s?"selected":""}>${statusLabel(s)}</option>`).join("")}</select></div>
+      <div class="field wide"><label>Observações</label><textarea name="notes" rows="2" placeholder="Modelo, lote, cliente ou outra referência">${esc(item.notes||"")}</textarea></div>
+    </div><div class="modal-actions"><button type="button" class="secondary" data-close>Cancelar</button><button class="primary">Salvar licença</button></div></form>`;
+    openModal("form-modal");
+    $("license-form").onsubmit=async ev=>{
+      ev.preventDefault();
+      const d=Object.fromEntries(new FormData(ev.target));
+      d.license_key=d.license_key.trim();
+      if(!d.license_key){toast("Informe a chave de licença.",true);return;}
+      if(!db){toast("Configure o Supabase antes de salvar.",true);return;}
+      const duplicate=licensePool.find(l=>l.id!==item.id&&l.license_key.trim().toLowerCase()===d.license_key.toLowerCase());
+      if(duplicate){toast("Essa chave de licença já está cadastrada.",true);return;}
+      const payload={license_key:d.license_key,status:d.status,notes:d.notes.trim()||null,updated_at:new Date().toISOString()};
+      const {error}=item.id
+        ? await db.from("license_pool").update(payload).eq("id",item.id)
+        : await db.from("license_pool").insert(payload);
+      if(error){toast("Não foi possível salvar a licença: "+error.message,true);return;}
+      closeModals();toast("Licença salva.");await loadData();
+    };
+  }
+  async function setLicenseStatus(id,status){
+    if(!requireAdmin()||!db)return;
+    const item=licensePool.find(l=>l.id===id);if(!item)return;
+    const {error}=await db.from("license_pool").update({status,updated_at:new Date().toISOString()}).eq("id",id);
+    if(error){toast("Não foi possível atualizar a licença: "+error.message,true);return;}
+    toast(status==="used"?"Licença marcada como usada.":status==="inactive"?"Licença marcada como inativa.":"Licença marcada como disponível.");
+    await loadData();
+  }
+  async function deleteLicense(id){
+    if(!requireAdmin()||!db)return;
+    const item=licensePool.find(l=>l.id===id);if(!item)return;
+    const linkedVpu=equipment.find(e=>e.license_key===item.license_key);
+    if(linkedVpu){toast(`Essa licença está vinculada à ${linkedVpu.label}. Remova o vínculo no equipamento antes de excluir.`,true);return;}
+    if(!await confirmAction("Excluir licença?",`Tem certeza que deseja excluir a chave ${item.license_key}? Esta ação não pode ser desfeita.`))return;
+    const {error}=await db.from("license_pool").delete().eq("id",id);
+    if(error){toast("Não foi possível excluir a licença: "+error.message,true);return;}
+    toast("Licença excluída.");await loadData();
+  }
   async function deleteEquipment(id){
     if(!requireAdmin())return;
     if(!db){toast("Configure o Supabase antes de excluir.",true);return;}
@@ -313,6 +403,7 @@
     if(!await confirmAction("Excluir equipamento?",`Tem certeza que deseja excluir o equipamento ${item.label}? Esta ação não pode ser desfeita.`))return;
     const {error}=await db.from("vpus").delete().eq("id",id);
     if(error){toast("Não foi possível excluir o equipamento: "+error.message,true);return;}
+    await syncLicenseStatus(item.license_key,"available","Licença liberada após exclusão da VPU");
     toast("Equipamento excluído.");await loadData();
   }
   async function deleteReservation(id){
@@ -328,6 +419,7 @@
     if(eq&&["reserved","separating"].includes(item.status)){
       const {error}=await db.from("vpus").update({status:"available"}).eq("id",eq.id);
       updateError=error;
+      if(!updateError)await syncLicenseStatus(eq.license_key,"available","Licença liberada após exclusão da reserva");
     }
     await logMovement(item.equipment_id,"Reserva excluída",item.farm_name+" · "+statusLabel(item.status));
     if(updateError)toast("Reserva excluída, mas não foi possível atualizar o equipamento: "+updateError.message,true);
@@ -347,6 +439,7 @@
     if(eq){
       const {error:equipmentError}=await db.from("vpus").update({status:equipmentStatus}).eq("id",eq.id);
       if(equipmentError){toast("A reserva foi atualizada, mas o equipamento não: "+equipmentError.message,true);await loadData();return;}
+      await syncLicenseStatus(eq.license_key,"used",item.farm_name);
     }
     await logMovement(item.equipment_id,"Reserva: "+statusLabel(nextStatus),item.farm_name);
     toast(nextStatus==="separating"?"Reserva marcada como separada.":"Reserva concluída.");
@@ -358,10 +451,14 @@
     if(ev.target.closest("[data-close]")){closeModals();return;}
     const newEq=ev.target.closest('[data-action="new-equipment"]');if(newEq){equipmentForm();return;}
     const newRes=ev.target.closest('[data-action="new-reservation"]');if(newRes){reservationForm();return;}
+    const newLicense=ev.target.closest('[data-action="new-license"]');if(newLicense){licenseForm();return;}
     const editEq=ev.target.closest("[data-edit-equipment]");if(editEq){equipmentForm(eqFor(editEq.dataset.editEquipment));return;}
     const editRes=ev.target.closest("[data-edit-reservation]");if(editRes){reservationForm(reservations.find(r=>r.id===editRes.dataset.editReservation));return;}
     const deleteEq=ev.target.closest("[data-delete-equipment]");if(deleteEq){deleteEquipment(deleteEq.dataset.deleteEquipment);return;}
     const deleteRes=ev.target.closest("[data-delete-reservation]");if(deleteRes){deleteReservation(deleteRes.dataset.deleteReservation);return;}
+    const editLicense=ev.target.closest("[data-edit-license]");if(editLicense){licenseForm(licensePool.find(l=>l.id===editLicense.dataset.editLicense));return;}
+    const deleteLicense=ev.target.closest("[data-delete-license]");if(deleteLicense){deleteLicense(deleteLicense.dataset.deleteLicense);return;}
+    const licenseStatus=ev.target.closest("[data-license-status]");if(licenseStatus){setLicenseStatus(licenseStatus.dataset.licenseStatus,licenseStatus.dataset.nextStatus);return;}
     const copyEq=ev.target.closest("[data-copy-equipment]");if(copyEq){copyEquipmentLicense(copyEq.dataset.copyEquipment);return;}
     const shareEq=ev.target.closest("[data-share-equipment]");if(shareEq){shareEquipment(shareEq.dataset.shareEquipment);return;}
     const copyRes=ev.target.closest("[data-copy-reservation]");if(copyRes){copyReservationLicense(copyRes.dataset.copyReservation);return;}
@@ -376,7 +473,7 @@
   document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&pendingConfirmation)finishConfirmation(false);});
   $("admin-button").onclick=async()=>{if(isAdmin){await logout();}else{openModal("login-modal");}};
   $("login-submit").onclick=login;
-  ["equipment-search","equipment-filter","reservation-search","reservation-filter","history-search"].forEach(id=>$(id).addEventListener("input",render));
+  ["equipment-search","equipment-filter","reservation-search","reservation-filter","history-search","license-search","license-filter"].forEach(id=>$(id).addEventListener("input",render));
   if(db){db.auth.onAuthStateChange(()=>setTimeout(async()=>{await checkAdmin();render();},0));}
   document.querySelectorAll("[data-icon]").forEach(el=>{el.innerHTML=icon(el.dataset.icon);});
   goto("dashboard");checkAdmin();loadData();

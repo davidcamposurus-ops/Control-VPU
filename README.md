@@ -8,6 +8,8 @@
 - Exclusão administrativa de reservas e de equipamentos sem reservas vinculadas.
 - Painel de estoque com ações rápidas para marcar reservas como separadas ou concluídas.
 - Copiar chaves de licença e compartilhar dados completos de separação pelo WhatsApp.
+- Cadastro administrativo de licenças em lista ou escrita manual.
+- Identificação de VPU normalizada como `VPU 01`, com proteção contra duplicidade.
 - Confirmações e avisos personalizados na interface, sem caixas de diálogo nativas do navegador.
 - Histórico básico de movimentações.
 - Acesso administrativo por e-mail e senha do Supabase Auth.
@@ -19,6 +21,8 @@ Esta versão ainda precisa ser conectada ao seu projeto Supabase. O arquivo `ind
 1. Entre em https://supabase.com e crie um projeto.
 2. Abra o SQL Editor.
 3. Cole e execute todo o conteúdo de `supabase.sql`.
+   - Esta versão inclui a tabela `license_pool` e o índice de identificação normalizada das VPUs.
+   - Execute novamente o SQL atualizado sempre que atualizar a estrutura do banco.
 4. Em Project Settings > API, copie a Project URL e a chave `anon` / publishable.
 5. Guarde a Project URL e a chave `anon` / `publishable` como valores seguros para configurar nos provedores de hospedagem.
 

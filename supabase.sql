@@ -37,6 +37,10 @@ create unique index if not exists one_active_reservation_per_vpu
 on public.reservations(equipment_id)
 where status in ('reserved','separating','in_field');
 
+-- Evita variações como "VPU 01" e "vpu 01" duplicarem o mesmo equipamento.
+create unique index if not exists one_normalized_vpu_label
+on public.vpus (lower(trim(label)));
+
 create table if not exists public.movements (
   id uuid primary key default gen_random_uuid(),
   equipment_id uuid references public.vpus(id) on delete set null,
@@ -44,6 +48,16 @@ create table if not exists public.movements (
   details text,
   actor text,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.license_pool (
+  id uuid primary key default gen_random_uuid(),
+  license_key text not null unique,
+  status text not null default 'available'
+    check (status in ('available','used','inactive')),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create or replace function public.is_vpu_admin()
@@ -60,6 +74,7 @@ alter table public.app_admins enable row level security;
 alter table public.vpus enable row level security;
 alter table public.reservations enable row level security;
 alter table public.movements enable row level security;
+alter table public.license_pool enable row level security;
 
 -- Remova políticas antigas com estes nomes se estiver repetindo a instalação.
 drop policy if exists "Public can read vpus" on public.vpus;
@@ -69,6 +84,7 @@ drop policy if exists "Admins manage reservations" on public.reservations;
 drop policy if exists "Public can read movements" on public.movements;
 drop policy if exists "Admins manage movements" on public.movements;
 drop policy if exists "Admins can read admin list" on public.app_admins;
+drop policy if exists "Admins manage license pool" on public.license_pool;
 
 create policy "Public can read vpus" on public.vpus for select to anon, authenticated using (true);
 create policy "Admins manage vpus" on public.vpus for all to authenticated using (public.is_vpu_admin()) with check (public.is_vpu_admin());
@@ -80,10 +96,12 @@ create policy "Public can read movements" on public.movements for select to anon
 create policy "Admins manage movements" on public.movements for all to authenticated using (public.is_vpu_admin()) with check (public.is_vpu_admin());
 
 create policy "Admins can read admin list" on public.app_admins for select to authenticated using (user_id = auth.uid());
+create policy "Admins manage license pool" on public.license_pool for all to authenticated using (public.is_vpu_admin()) with check (public.is_vpu_admin());
 
 grant usage on schema public to anon, authenticated;
 grant select on public.vpus, public.reservations, public.movements to anon, authenticated;
 grant insert, update, delete on public.vpus, public.reservations, public.movements to authenticated;
+grant select, insert, update, delete on public.license_pool to authenticated;
 grant select on public.app_admins to authenticated;
 
 -- IMPORTANTE:
